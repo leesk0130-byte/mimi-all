@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import {
   Scissors, Sparkles, Heart, Eye, Zap, User, Palette,
