@@ -1,12 +1,14 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   Scissors, Sparkles, Heart, Eye, Zap, User, Palette,
   Search, ChevronRight, Clock, Star, TrendingUp,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/client'
+import type { Shop } from '@/types'
 
 const CATEGORIES = [
   { value: 'hair', label: '헤어샵', icon: Scissors, color: 'bg-rose-50 text-rose-500' },
@@ -29,33 +31,20 @@ const CAT_LABEL: Record<string, string> = {
   lash: '속눈썹', barber: '바버', waxing: '왁싱', makeup: '메이크업',
 }
 
-export default async function HomePage() {
-  let popularShops: any[] = []
-  let newShops: any[] = []
+export default function HomePage() {
+  const [popularShops, setPopularShops] = useState<Shop[]>([])
+  const [newShops, setNewShops] = useState<Shop[]>([])
 
-  try {
-    const supabase = createAdminClient()
-
-    const { data: p, error: e1 } = await supabase
-      .from('shops')
-      .select('*')
-      .eq('status', 'approved')
-      .order('review_count', { ascending: false })
-      .limit(6)
-    if (e1) console.error('popularShops error:', e1.message)
-    popularShops = p || []
-
-    const { data: n, error: e2 } = await supabase
-      .from('shops')
-      .select('*')
-      .eq('status', 'approved')
-      .order('created_at', { ascending: false })
-      .limit(3)
-    if (e2) console.error('newShops error:', e2.message)
-    newShops = n || []
-  } catch (err) {
-    console.error('Homepage fetch error:', err)
-  }
+  useEffect(() => {
+    const fetch = async () => {
+      const supabase = createClient()
+      const { data: p } = await supabase.from('shops').select('*').eq('status', 'approved').order('review_count', { ascending: false }).limit(6)
+      const { data: n } = await supabase.from('shops').select('*').eq('status', 'approved').order('created_at', { ascending: false }).limit(3)
+      setPopularShops((p as Shop[]) || [])
+      setNewShops((n as Shop[]) || [])
+    }
+    fetch()
+  }, [])
 
   return (
     <div className="min-h-screen">
@@ -73,7 +62,6 @@ export default async function HomePage() {
             <p className="mt-4 text-white/70 text-base md:text-lg">
               헤어, 네일, 피부관리, 속눈썹, 왁싱, 바버샵까지
             </p>
-
             <div className="mt-8 flex gap-2">
               <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -83,23 +71,12 @@ export default async function HomePage() {
                   </div>
                 </Link>
               </div>
-              <Link
-                href="/search"
-                className="h-12 px-6 bg-white text-brand hover:bg-white/90 shadow-lg font-semibold rounded-xl inline-flex items-center justify-center text-sm"
-              >
-                검색
-              </Link>
+              <Link href="/search" className="h-12 px-6 bg-white text-brand hover:bg-white/90 shadow-lg font-semibold rounded-xl inline-flex items-center justify-center text-sm">검색</Link>
             </div>
-
             <div className="flex gap-2 mt-4">
               {QUICK_FILTERS.map(({ label, href, icon: Icon }) => (
-                <Link
-                  key={label}
-                  href={href}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-medium backdrop-blur-sm transition-colors"
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {label}
+                <Link key={label} href={href} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-medium backdrop-blur-sm transition-colors">
+                  <Icon className="w-3.5 h-3.5" />{label}
                 </Link>
               ))}
             </div>
@@ -112,24 +89,16 @@ export default async function HomePage() {
         <div className="bg-white rounded-2xl shadow-lg border p-6">
           <div className="grid grid-cols-4 md:grid-cols-7 gap-4">
             {CATEGORIES.map(({ value, label, icon: Icon, color }) => (
-              <Link
-                key={value}
-                href={`/search?category=${value}`}
-                className="flex flex-col items-center gap-2 group"
-              >
-                <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
-                  <Icon className="w-6 h-6" />
-                </div>
-                <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                  {label}
-                </span>
+              <Link key={value} href={`/search?category=${value}`} className="flex flex-col items-center gap-2 group">
+                <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}><Icon className="w-6 h-6" /></div>
+                <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">{label}</span>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 프로모션 배너 */}
+      {/* 프로모션 */}
       <section className="max-w-7xl mx-auto px-4 mt-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-violet-500 to-purple-600 p-6 md:p-8 text-white">
@@ -137,24 +106,14 @@ export default async function HomePage() {
             <Badge className="bg-white/20 text-white border-0 mb-3">입점 혜택</Badge>
             <h3 className="text-xl font-bold">수수료 0.3%</h3>
             <p className="text-white/70 text-sm mt-1">업계 최저 수수료로 시작하세요</p>
-            <Link
-              href="/signup?role=owner"
-              className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-white text-violet-600 hover:bg-white/90 text-sm font-semibold transition-colors"
-            >
-              무료 입점하기
-            </Link>
+            <Link href="/signup?role=owner" className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-white text-violet-600 hover:bg-white/90 text-sm font-semibold transition-colors">무료 입점하기</Link>
           </div>
           <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-brand to-rose-400 p-6 md:p-8 text-white">
             <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/10 rounded-full translate-y-12 -translate-x-12" />
             <Badge className="bg-white/20 text-white border-0 mb-3">첫 방문 할인</Badge>
             <h3 className="text-xl font-bold">신규 가입 혜택</h3>
             <p className="text-white/70 text-sm mt-1">첫 예약 시 특별 할인</p>
-            <Link
-              href="/signup"
-              className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-white text-brand hover:bg-white/90 text-sm font-semibold transition-colors"
-            >
-              가입하기
-            </Link>
+            <Link href="/signup" className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-white text-brand hover:bg-white/90 text-sm font-semibold transition-colors">가입하기</Link>
           </div>
         </div>
       </section>
@@ -162,38 +121,20 @@ export default async function HomePage() {
       {/* 인기 뷰티샵 */}
       <section className="max-w-7xl mx-auto px-4 mt-12 mb-8">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold">인기 뷰티샵</h2>
-            <p className="text-sm text-muted-foreground mt-1">재예약이 많은 인기 샵</p>
-          </div>
-          <Link href="/search?sort=popular" className="flex items-center gap-1 text-sm text-brand font-medium hover:underline">
-            전체보기 <ChevronRight className="w-4 h-4" />
-          </Link>
+          <div><h2 className="text-xl font-bold">인기 뷰티샵</h2><p className="text-sm text-muted-foreground mt-1">재예약이 많은 인기 샵</p></div>
+          <Link href="/search?sort=popular" className="flex items-center gap-1 text-sm text-brand font-medium hover:underline">전체보기 <ChevronRight className="w-4 h-4" /></Link>
         </div>
-
-        {popularShops && popularShops.length > 0 ? (
+        {popularShops.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {popularShops.map((shop) => (
-              <Link
-                key={shop.id}
-                href={`/shop/${shop.id}`}
-                className="group block rounded-2xl overflow-hidden bg-card border hover:shadow-lg transition-all duration-300"
-              >
+              <Link key={shop.id} href={`/shop/${shop.id}`} className="group block rounded-2xl overflow-hidden bg-card border hover:shadow-lg transition-all duration-300">
                 <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-br from-brand-light to-muted flex items-center justify-center">
-                    <span className="text-3xl font-bold text-brand/20">{shop.name[0]}</span>
-                  </div>
-                  <Badge className="absolute top-2 left-2 bg-white/90 text-foreground text-[10px] backdrop-blur-sm">
-                    {CAT_LABEL[shop.category] ?? shop.category}
-                  </Badge>
+                  <div className="w-full h-full bg-gradient-to-br from-brand-light to-muted flex items-center justify-center"><span className="text-3xl font-bold text-brand/20">{shop.name[0]}</span></div>
+                  <Badge className="absolute top-2 left-2 bg-white/90 text-foreground text-[10px] backdrop-blur-sm">{CAT_LABEL[shop.category] ?? shop.category}</Badge>
                 </div>
                 <div className="p-3">
                   <h3 className="font-semibold text-sm truncate">{shop.name}</h3>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span className="text-xs font-medium">{Number(shop.avg_rating).toFixed(1)}</span>
-                    <span className="text-xs text-muted-foreground">({shop.review_count})</span>
-                  </div>
+                  <div className="flex items-center gap-1 mt-1"><Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /><span className="text-xs font-medium">{Number(shop.avg_rating).toFixed(1)}</span><span className="text-xs text-muted-foreground">({shop.review_count})</span></div>
                   <p className="text-[11px] text-muted-foreground mt-1 truncate">{shop.address}</p>
                 </div>
               </Link>
@@ -204,12 +145,7 @@ export default async function HomePage() {
             <Scissors className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-muted-foreground text-sm">아직 입점된 매장이 없습니다</p>
             <p className="text-xs text-muted-foreground mt-1">첫 번째 입점 매장이 되어보세요!</p>
-            <Link
-              href="/signup?role=owner"
-              className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors"
-            >
-              무료 입점 신청
-            </Link>
+            <Link href="/signup?role=owner" className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors">무료 입점 신청</Link>
           </div>
         )}
       </section>
@@ -218,45 +154,25 @@ export default async function HomePage() {
       <section className="bg-muted/30 py-12">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold">새로 오픈한 매장</h2>
-              <p className="text-sm text-muted-foreground mt-1">따끈따끈 신규 입점 샵</p>
-            </div>
-            <Link href="/search?sort=newest" className="flex items-center gap-1 text-sm text-brand font-medium hover:underline">
-              전체보기 <ChevronRight className="w-4 h-4" />
-            </Link>
+            <div><h2 className="text-xl font-bold">새로 오픈한 매장</h2><p className="text-sm text-muted-foreground mt-1">따끈따끈 신규 입점 샵</p></div>
+            <Link href="/search?sort=newest" className="flex items-center gap-1 text-sm text-brand font-medium hover:underline">전체보기 <ChevronRight className="w-4 h-4" /></Link>
           </div>
-
-          {newShops && newShops.length > 0 ? (
+          {newShops.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {newShops.map((shop) => (
-                <Link
-                  key={shop.id}
-                  href={`/shop/${shop.id}`}
-                  className="group flex gap-4 p-4 rounded-2xl bg-white border hover:shadow-lg transition-all duration-300"
-                >
-                  <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-muted">
-                    <div className="w-full h-full bg-gradient-to-br from-brand-light to-muted flex items-center justify-center">
-                      <span className="text-2xl font-bold text-brand/20">{shop.name[0]}</span>
-                    </div>
-                  </div>
+                <Link key={shop.id} href={`/shop/${shop.id}`} className="group flex gap-4 p-4 rounded-2xl bg-white border hover:shadow-lg transition-all duration-300">
+                  <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-muted"><div className="w-full h-full bg-gradient-to-br from-brand-light to-muted flex items-center justify-center"><span className="text-2xl font-bold text-brand/20">{shop.name[0]}</span></div></div>
                   <div className="flex-1 min-w-0">
                     <Badge variant="secondary" className="text-[10px]">{CAT_LABEL[shop.category] ?? shop.category}</Badge>
                     <h3 className="font-semibold mt-1 truncate">{shop.name}</h3>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span className="text-sm font-medium">{Number(shop.avg_rating).toFixed(1)}</span>
-                      <span className="text-xs text-muted-foreground">리뷰 {shop.review_count}</span>
-                    </div>
+                    <div className="flex items-center gap-1 mt-1"><Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /><span className="text-sm font-medium">{Number(shop.avg_rating).toFixed(1)}</span><span className="text-xs text-muted-foreground">리뷰 {shop.review_count}</span></div>
                     <p className="text-xs text-muted-foreground mt-1">{shop.address}</p>
                   </div>
                 </Link>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 rounded-2xl border bg-white">
-              <p className="text-muted-foreground text-sm">아직 신규 매장이 없습니다</p>
-            </div>
+            <div className="text-center py-12 rounded-2xl border bg-white"><p className="text-muted-foreground text-sm">아직 신규 매장이 없습니다</p></div>
           )}
         </div>
       </section>
@@ -268,16 +184,8 @@ export default async function HomePage() {
           <div className="relative">
             <Badge className="bg-brand/20 text-brand-light border-0 mb-4">사장님 전용</Badge>
             <h2 className="text-2xl md:text-3xl font-bold">우리 샵도 미미올에서 만나보세요</h2>
-            <p className="text-white/60 mt-3 max-w-md mx-auto">
-              업계 최저 0.3% 수수료 · 실시간 예약 관리 · 매출 통계<br />
-              지금 무료로 입점하세요
-            </p>
-            <Link
-              href="/signup?role=owner"
-              className="inline-flex items-center mt-8 px-8 py-3 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold transition-colors"
-            >
-              무료 입점 신청
-            </Link>
+            <p className="text-white/60 mt-3 max-w-md mx-auto">업계 최저 0.3% 수수료 · 실시간 예약 관리 · 매출 통계<br />지금 무료로 입점하세요</p>
+            <Link href="/signup?role=owner" className="inline-flex items-center mt-8 px-8 py-3 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold transition-colors">무료 입점 신청</Link>
           </div>
         </div>
       </section>
