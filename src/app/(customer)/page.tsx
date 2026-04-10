@@ -4,6 +4,7 @@ import {
   Search, ChevronRight, Clock, Star, TrendingUp,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { createClient } from '@/lib/supabase/server'
 
 const CATEGORIES = [
   { value: 'hair', label: '헤어샵', icon: Scissors, color: 'bg-rose-50 text-rose-500' },
@@ -21,21 +22,28 @@ const QUICK_FILTERS = [
   { label: '높은평점', href: '/search?sort=rating', icon: Star },
 ]
 
-const DEMO_SHOPS = [
-  { id: '1', name: '루미에르 헤어', category: 'hair', rating: 4.9, reviews: 328, address: '강남구 신사동' },
-  { id: '2', name: '젤리네일 스튜디오', category: 'nail', rating: 4.8, reviews: 156, address: '마포구 연남동' },
-  { id: '3', name: '글로우 에스테틱', category: 'skin', rating: 4.7, reviews: 89, address: '서초구 반포동' },
-  { id: '4', name: '뷰티래쉬', category: 'lash', rating: 4.9, reviews: 201, address: '강남구 청담동' },
-  { id: '5', name: '바버샵 그루밍', category: 'barber', rating: 4.6, reviews: 94, address: '용산구 이태원동' },
-  { id: '6', name: '헤어살롱 봄', category: 'hair', rating: 4.8, reviews: 412, address: '성동구 성수동' },
-]
-
 const CAT_LABEL: Record<string, string> = {
   hair: '헤어', nail: '네일', skin: '피부관리',
   lash: '속눈썹', barber: '바버', waxing: '왁싱', makeup: '메이크업',
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient()
+
+  const { data: popularShops } = await supabase
+    .from('shops')
+    .select('*')
+    .eq('status', 'approved')
+    .order('review_count', { ascending: false })
+    .limit(6)
+
+  const { data: newShops } = await supabase
+    .from('shops')
+    .select('*')
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(3)
+
   return (
     <div className="min-h-screen">
       {/* 히어로 */}
@@ -53,7 +61,6 @@ export default function HomePage() {
               헤어, 네일, 피부관리, 속눈썹, 왁싱, 바버샵까지
             </p>
 
-            {/* 검색바 */}
             <div className="mt-8 flex gap-2">
               <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -71,7 +78,6 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* 빠른 필터 */}
             <div className="flex gap-2 mt-4">
               {QUICK_FILTERS.map(({ label, href, icon: Icon }) => (
                 <Link
@@ -151,33 +157,48 @@ export default function HomePage() {
             전체보기 <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {DEMO_SHOPS.map((shop) => (
+
+        {popularShops && popularShops.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {popularShops.map((shop) => (
+              <Link
+                key={shop.id}
+                href={`/shop/${shop.id}`}
+                className="group block rounded-2xl overflow-hidden bg-card border hover:shadow-lg transition-all duration-300"
+              >
+                <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+                  <div className="w-full h-full bg-gradient-to-br from-brand-light to-muted flex items-center justify-center">
+                    <span className="text-3xl font-bold text-brand/20">{shop.name[0]}</span>
+                  </div>
+                  <Badge className="absolute top-2 left-2 bg-white/90 text-foreground text-[10px] backdrop-blur-sm">
+                    {CAT_LABEL[shop.category] ?? shop.category}
+                  </Badge>
+                </div>
+                <div className="p-3">
+                  <h3 className="font-semibold text-sm truncate">{shop.name}</h3>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <span className="text-xs font-medium">{Number(shop.avg_rating).toFixed(1)}</span>
+                    <span className="text-xs text-muted-foreground">({shop.review_count})</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 truncate">{shop.address}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 rounded-2xl border bg-muted/20">
+            <Scissors className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">아직 입점된 매장이 없습니다</p>
+            <p className="text-xs text-muted-foreground mt-1">첫 번째 입점 매장이 되어보세요!</p>
             <Link
-              key={shop.id}
-              href={`/shop/${shop.id}`}
-              className="group block rounded-2xl overflow-hidden bg-card border hover:shadow-lg transition-all duration-300"
+              href="/signup?role=owner"
+              className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors"
             >
-              <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-br from-brand-light to-muted flex items-center justify-center">
-                  <span className="text-3xl font-bold text-brand/20">{shop.name[0]}</span>
-                </div>
-                <Badge className="absolute top-2 left-2 bg-white/90 text-foreground text-[10px] backdrop-blur-sm">
-                  {CAT_LABEL[shop.category]}
-                </Badge>
-              </div>
-              <div className="p-3">
-                <h3 className="font-semibold text-sm truncate">{shop.name}</h3>
-                <div className="flex items-center gap-1 mt-1">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span className="text-xs font-medium">{shop.rating}</span>
-                  <span className="text-xs text-muted-foreground">({shop.reviews})</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1 truncate">{shop.address}</p>
-              </div>
+              무료 입점 신청
             </Link>
-          ))}
-        </div>
+          </div>
+        )}
       </section>
 
       {/* 새로 오픈 */}
@@ -192,31 +213,38 @@ export default function HomePage() {
               전체보기 <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {DEMO_SHOPS.slice(0, 3).map((shop) => (
-              <Link
-                key={shop.id}
-                href={`/shop/${shop.id}`}
-                className="group flex gap-4 p-4 rounded-2xl bg-white border hover:shadow-lg transition-all duration-300"
-              >
-                <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-muted">
-                  <div className="w-full h-full bg-gradient-to-br from-brand-light to-muted flex items-center justify-center">
-                    <span className="text-2xl font-bold text-brand/20">{shop.name[0]}</span>
+
+          {newShops && newShops.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {newShops.map((shop) => (
+                <Link
+                  key={shop.id}
+                  href={`/shop/${shop.id}`}
+                  className="group flex gap-4 p-4 rounded-2xl bg-white border hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-muted">
+                    <div className="w-full h-full bg-gradient-to-br from-brand-light to-muted flex items-center justify-center">
+                      <span className="text-2xl font-bold text-brand/20">{shop.name[0]}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Badge variant="secondary" className="text-[10px]">{CAT_LABEL[shop.category]}</Badge>
-                  <h3 className="font-semibold mt-1 truncate">{shop.name}</h3>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span className="text-sm font-medium">{shop.rating}</span>
-                    <span className="text-xs text-muted-foreground">리뷰 {shop.reviews}</span>
+                  <div className="flex-1 min-w-0">
+                    <Badge variant="secondary" className="text-[10px]">{CAT_LABEL[shop.category] ?? shop.category}</Badge>
+                    <h3 className="font-semibold mt-1 truncate">{shop.name}</h3>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      <span className="text-sm font-medium">{Number(shop.avg_rating).toFixed(1)}</span>
+                      <span className="text-xs text-muted-foreground">리뷰 {shop.review_count}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{shop.address}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{shop.address}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 rounded-2xl border bg-white">
+              <p className="text-muted-foreground text-sm">아직 신규 매장이 없습니다</p>
+            </div>
+          )}
         </div>
       </section>
 
