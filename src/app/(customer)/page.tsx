@@ -30,21 +30,32 @@ const CAT_LABEL: Record<string, string> = {
 }
 
 export default async function HomePage() {
-  const supabase = createAdminClient()
+  let popularShops: any[] = []
+  let newShops: any[] = []
 
-  const { data: popularShops } = await supabase
-    .from('shops')
-    .select('*')
-    .eq('status', 'approved')
-    .order('review_count', { ascending: false })
-    .limit(6)
+  try {
+    const supabase = createAdminClient()
 
-  const { data: newShops } = await supabase
-    .from('shops')
-    .select('*')
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false })
-    .limit(3)
+    const { data: p, error: e1 } = await supabase
+      .from('shops')
+      .select('*')
+      .eq('status', 'approved')
+      .order('review_count', { ascending: false })
+      .limit(6)
+    if (e1) console.error('popularShops error:', e1.message)
+    popularShops = p || []
+
+    const { data: n, error: e2 } = await supabase
+      .from('shops')
+      .select('*')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(3)
+    if (e2) console.error('newShops error:', e2.message)
+    newShops = n || []
+  } catch (err) {
+    console.error('Homepage fetch error:', err)
+  }
 
   return (
     <div className="min-h-screen">
