@@ -6,7 +6,7 @@ import {
   Search, ChevronRight, Clock, Star, TrendingUp,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 const CATEGORIES = [
   { value: 'hair', label: '헤어샵', icon: Scissors, color: 'bg-rose-50 text-rose-500' },
@@ -30,7 +30,7 @@ const CAT_LABEL: Record<string, string> = {
 }
 
 export default async function HomePage() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: popularShops } = await supabase
     .from('shops')
